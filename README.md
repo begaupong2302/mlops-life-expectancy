@@ -55,3 +55,21 @@ The goal is to compare the performance of these models and choose the best-perfo
    ```bash
    git clone https://github.com/yourusername/life-expectancy-prediction.git
 
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+
+3. Run the preprocessing script:
+   ```bash
+   python preprocess_data.py
+
+4. Train the model:
+   ```bash
+   python train_model.py
+
+5. Deploy the model:
+   ```bash
+   docker build -t life-expectancy-model .
+   docker run -p 5000:5000 life-expectancy-model
+   
+
