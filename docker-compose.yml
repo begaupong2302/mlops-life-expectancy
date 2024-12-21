@@ -20,24 +20,23 @@ services:
       - "8005:8005"
     command: ["python", "main.py"]
 
-  # test:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #     args:
-  #       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-  #       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-  #       - AWS_REGION=${AWS_REGION}
-  #   environment:
-  #     - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-  #     - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-  #     - AWS_REGION=${AWS_REGION}
-  #   volumes:
-  #     - .:/app
-  #   depends_on:
-  #     - mlflow
-  #   command: ["pytest", "-v", "/app/tests/test_prediction.py"]
-
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+        - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+        - AWS_REGION=${AWS_REGION}
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+    volumes:
+      - .:/app
+    depends_on:
+      - mlflow
+    command: ["pytest", "-v", "/app/tests/test_prediction.py"]
 
   mlflow_server:
     restart: always
@@ -71,4 +70,3 @@ services:
       - MYSQL_DATABASE=${MYSQL_DATABASE}
       - S3_ARTIFACT_ROOT=${S3_ARTIFACT_ROOT}
     entrypoint: mlflow server --backend-store-uri mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE} --default-artifact-root ${S3_ARTIFACT_ROOT} -h 0.0.0.0
-    
