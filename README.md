@@ -40,32 +40,11 @@ The data will be cleaned, transformed, and preprocessed before being used in the
 ## D. Models to be Used
 
 We plan to experiment with several machine learning models, including:
-- **Linear Regression**: For a simple baseline model.
-- **Random Forest Regressor**: For a more complex, non-linear approach.
 - **XGBoost**: For advanced boosting models that can capture more complex relationships in the data.
-- **Potentially Neural Networks**: If deep learning models are necessary to capture complex patterns.
 
 The goal is to compare the performance of these models and choose the best-performing one for deployment.
 
 ---
-
-## How to Run the Project
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/life-expectancy-prediction.git
-
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-
-3. Run the preprocessing script:
-   ```bash
-   python preprocess_data.py
-
-4. Train the model:
-   ```bash
-   python train_model.py
 
 5. Deploy the model:
    ```bash
