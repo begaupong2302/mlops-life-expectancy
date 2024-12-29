@@ -45,10 +45,5 @@ We plan to experiment with several machine learning models, including:
 The goal is to compare the performance of these models and choose the best-performing one for deployment.
 
 ---
-
-5. Deploy the model:
-   ```bash
-   docker build -t life-expectancy-model .
-   docker run -p 5000:5000 life-expectancy-model
    
 
