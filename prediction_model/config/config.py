@@ -11,50 +11,23 @@ PACKAGE_ROOT = os.path.dirname(current_directory) #parent directory of current d
 
 DATAPATH = os.path.join(PACKAGE_ROOT,"datasets")
 
-TRAIN_FILE = 'train.csv'
-TEST_FILE = 'test.csv'
+DATASETS_FILE = "LifeExpectancyData.csv"
 
-TARGET = 'Loan_Status'
+TARGET = 'Life expectancy '
 
-#Final features used in the model
-FEATURES = ['Gender', 'Married', 'Dependents', 'Education',
-       'Self_Employed', 'ApplicantIncome', 'CoapplicantIncome', 'LoanAmount',
-       'Loan_Amount_Term', 'Credit_History', 'Property_Area']
+DROP_FEATURES = [
+    'Country',
+]
 
-NUM_FEATURES = ['ApplicantIncome', 'LoanAmount', 'Loan_Amount_Term']
-
-CAT_FEATURES = ['Gender',
- 'Married',
- 'Dependents',
- 'Education',
- 'Self_Employed',
- 'Credit_History',
- 'Property_Area']
-
-# in our case it is same as Categorical features
-FEATURES_TO_ENCODE = ['Gender',
- 'Married',
- 'Dependents',
- 'Education',
- 'Self_Employed',
- 'Credit_History',
- 'Property_Area']
-
-FEATURE_TO_MODIFY = ['ApplicantIncome']
-FEATURE_TO_ADD = 'CoapplicantIncome'
-
-DROP_FEATURES = ['CoapplicantIncome']
-
-LOG_FEATURES = ['ApplicantIncome', 'LoanAmount'] # taking log of numerical columns
-
-S3_BUCKET = "loanprediction"
+S3_BUCKET = "mlops-it5414-project"
 
 FOLDER="datadrift"
 
-TRACKING_URI="http://localhost:5000/"
+TRACKING_URI="http://ec2-54-173-194-157.compute-1.amazonaws.com:5000"
 
 
-EXPERIMENT_NAME="loan_prediction_model"
+EXPERIMENT_NAME="life_expectancy_prediction_model"
 
-MODEL_NAME="/Loanprediction-model"
+MODEL_NAME="/LifeExpectancy-prediction-model"
 
+CONFIG_FILE="/app/prediction_model/config.yaml"

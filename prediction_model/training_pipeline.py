@@ -1,52 +1,66 @@
 import numpy as np
 import pandas as pd
+import yaml
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score, accuracy_score, recall_score, precision_score
+from sklearn.metrics import mean_squared_error, r2_score
 import mlflow
 import mlflow.sklearn
 from hyperopt import fmin, tpe, hp, Trials, STATUS_OK
 import xgboost as xgb
-from prediction_model.config import config
-from prediction_model.processing.data_handling import load_dataset
-import prediction_model.processing.preprocessing as pp 
-import prediction_model.pipeline as pipe
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, LabelEncoder, StandardScaler
+from sklearn.impute import SimpleImputer
+
+from prediction_model.processing.data_handling import load_dataset
+from prediction_model.config import config
+
+# Set MLflow URI
+mlflow.set_tracking_uri(config.TRACKING_URI)
+
+# Load the dataset
+def get_data(input_file):
+    data = load_dataset(input_file)
+    return data
+
+def load_config(config_file):
+    with open(config_file, 'r') as file:
+        config = yaml.safe_load(file)
+    return config
+
+config_params = load_config(config.CONFIG_FILE)
+
+life_expectancy_df = get_data(config.DATASETS_FILE)
+life_expectancy_df = life_expectancy_df.drop(columns = config.DROP_FEATURES)
+life_expectancy_df['Status'].unique()
+life_expectancy_df = pd.get_dummies(life_expectancy_df, columns = ['Status'])
+life_expectancy_df = life_expectancy_df.apply(lambda x: x.fillna(x.mean()),axis=0)
+
+# Load and preprocess the data
+X = life_expectancy_df.drop(columns = [config.TARGET])
+y = life_expectancy_df[[config.TARGET]]
+X = np.array(X).astype('float32')
+y = np.array(y).astype('float32')
 
 
-mlflow.set_tracking_uri("http://127.0.0.1:5000")
+# Split data into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state=42)
 
-# mlflow.set_tracking_uri(config.TRACKING_URI)
-
-def get_data(input):
-    data=load_dataset(input)
-    x=data[config.FEATURES]
-    y=data[config.TARGET].map({'N':0,'Y':1})
-    return x,y
-   
-
-X,Y=get_data(config.TRAIN_FILE)
-
-X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
-   
-
-# Define the search space
+# Define the search space for hyperparameter tuning
 search_space = {
-    'max_depth': hp.choice('max_depth', np.arange(3, 10, dtype=int)),
-    'learning_rate': hp.uniform('learning_rate', 0.01, 0.3),
-    'n_estimators': hp.choice('n_estimators', np.arange(50, 300, 50, dtype=int)),
-    'subsample': hp.uniform('subsample', 0.5, 1.0),
-    'colsample_bytree': hp.uniform('colsample_bytree', 0.5, 1.0),
-    'gamma': hp.uniform('gamma', 0, 5),
-    'reg_alpha': hp.uniform('reg_alpha', 0, 1),
-    'reg_lambda': hp.uniform('reg_lambda', 0, 1)
+    'max_depth': hp.choice('max_depth', np.array(config_params['search_space']['max_depth'], dtype=int)),
+    'learning_rate': hp.uniform('learning_rate', config_params['search_space']['learning_rate']['min'], config_params['search_space']['learning_rate']['max']),
+    'n_estimators': hp.choice('n_estimators', np.array(config_params['search_space']['n_estimators'], dtype=int)),
+    'subsample': hp.uniform('subsample', config_params['search_space']['subsample']['min'], config_params['search_space']['subsample']['max']),
+    'colsample_bytree': hp.uniform('colsample_bytree', config_params['search_space']['colsample_bytree']['min'], config_params['search_space']['colsample_bytree']['max']),
+    'gamma': hp.uniform('gamma', config_params['search_space']['gamma']['min'], config_params['search_space']['gamma']['max']),
+    'reg_alpha': hp.uniform('reg_alpha', config_params['search_space']['reg_alpha']['min'], config_params['search_space']['reg_alpha']['max']),
+    'reg_lambda': hp.uniform('reg_lambda', config_params['search_space']['reg_lambda']['min'], config_params['search_space']['reg_lambda']['max'])
 }
 
-
+# Objective function for hyperparameter tuning
 def objective(params):
-    # Create an XGBoost classifier with the given hyperparameters
-    
-    clf = xgb.XGBClassifier(
+    # Create an XGBoost regressor with the given hyperparameters
+    reg = xgb.XGBRegressor(
         max_depth=params['max_depth'],
         learning_rate=params['learning_rate'],
         n_estimators=params['n_estimators'],
@@ -55,60 +69,44 @@ def objective(params):
         gamma=params['gamma'],
         reg_alpha=params['reg_alpha'],
         reg_lambda=params['reg_lambda'],
-        use_label_encoder=False,
-        eval_metric='mlogloss'
+        eval_metric='rmse'
     )
+
+    regression_pipeline = Pipeline([
+        ('imputer', SimpleImputer(strategy='mean')),
+        ('scaler', MinMaxScaler()),
+        ('regressor', reg)
+    ])
     
-    # Define the complete pipeline with preprocessing and model
-    classification_pipeline = Pipeline(
-        [
-            ('DomainProcessing', pp.DomainProcessing(variable_to_modify=config.FEATURE_TO_MODIFY, variable_to_add=config.FEATURE_TO_ADD)),
-            ('MeanImputation', pp.MeanImputer(variables=config.NUM_FEATURES)),
-            ('ModeImputation', pp.ModeImputer(variables=config.CAT_FEATURES)),
-            ('DropFeatures', pp.DropColumns(variables_to_drop=config.DROP_FEATURES)),
-            ('LabelEncoder', pp.CustomLabelEncoder(variables=config.FEATURES_TO_ENCODE)),
-            ('LogTransform', pp.LogTransforms(variables=config.LOG_FEATURES)),
-            ('MinMaxScale', MinMaxScaler()),
-            ('XGBoostClassifier', clf)
-        ]
-    )
-    
-   
-    # Fit the pipeline
+    # Train the pipeline and log the metrics
     mlflow.xgboost.autolog()
-    mlflow.set_experiment("loan_prediction_model")
+    mlflow.set_experiment(config.EXPERIMENT_NAME)
     with mlflow.start_run(nested=True):
-        # Fit the pipeline
-        classification_pipeline.fit(X_train, y_train)
-        
-        # Make predictions
-        y_pred = classification_pipeline.predict(X_test)
-        
-        # Calculate metrics
-        f1 = f1_score(y_test, y_pred)
-        accuracy = accuracy_score(y_test, y_pred)
-        recall = recall_score(y_test, y_pred)
-        precision = precision_score(y_test, y_pred)
-        
-        # Log metrics manually
+        # Fit the model on training data
+        regression_pipeline.fit(X_train, y_train)
+
+        # Make predictions on the test data
+        y_pred = regression_pipeline.predict(X_test)
+
+        # Calculate performance metrics
+        mse = mean_squared_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+
+        # Log metrics to MLflow
         mlflow.log_metrics({
-            'f1_score': f1,
-            'accuracy': accuracy,
-            'recall': recall,
-            'precision': precision
+            'mse': mse,
+            'r2_score': r2
         })
 
-        mlflow.sklearn.log_model(classification_pipeline, "Loanprediction-model")
-    return {'loss': 1-f1, 'status': STATUS_OK}
-    
+        # Log the trained model
+        mlflow.sklearn.log_model(regression_pipeline, "LifeExpectancy-prediction-model")
 
+    # Return the loss for hyperparameter optimization (minimizing the MSE)
+    return {'loss': mse, 'status': STATUS_OK}
 
+# Hyperparameter tuning using Hyperopt
 trials = Trials()
-
 best_params = fmin(fn=objective, space=search_space, algo=tpe.suggest, max_evals=5, trials=trials)
 
+# Output the best hyperparameters
 print("Best hyperparameters:", best_params)
-
-
-
-
